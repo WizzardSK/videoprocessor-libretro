@@ -4,19 +4,12 @@ on: [push, workflow_dispatch]
 jobs:
   linux-x64:
     runs-on: ubuntu-22.04
-    container: ubuntu:xenial
     steps:
       - uses: actions/checkout@v4
-      - name: deps (replays .gitlab-ci.yml before_script)
+      - name: build in amd64 xenial container
         run: |
-          apt-get update -qy
-          apt-get install -qy build-essential libv4l-dev libasound2-dev libudev-dev
-      - run: make -f Makefile -j2
-      - run: |
-          ls -la video_processor_libretro.so
-          strip --strip-unneeded video_processor_libretro.so
-          nm -D --defined-only video_processor_libretro.so | sort
-          ldd video_processor_libretro.so
+          docker run --rm -v "$PWD":/src -w /src ubuntu:xenial \
+            sh -c 'apt-get update -qy && apt-get install -qy build-essential binutils libv4l-dev libasound2-dev libudev-dev && make -j2 && strip --strip-unneeded video_processor_libretro.so && ls -la video_processor_libretro.so && nm -D --defined-only video_processor_libretro.so | sort && ldd video_processor_libretro.so'
 
   linux-i686:
     runs-on: ubuntu-22.04
