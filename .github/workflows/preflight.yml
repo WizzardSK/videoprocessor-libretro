@@ -1,0 +1,49 @@
+name: buildbot preflight
+on: [push, workflow_dispatch]
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-22.04
+    container: ubuntu:xenial
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps (replays .gitlab-ci.yml before_script)
+        run: |
+          apt-get update -qy
+          apt-get install -qy build-essential libv4l-dev libasound2-dev libudev-dev
+      - run: make -f Makefile -j2
+      - run: |
+          ls -la video_processor_libretro.so
+          strip --strip-unneeded video_processor_libretro.so
+          nm -D --defined-only video_processor_libretro.so | sort
+          ldd video_processor_libretro.so
+
+  linux-i686:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: build in i386 xenial container
+        run: |
+          docker run --rm --platform linux/386 -v "$PWD":/src -w /src i386/ubuntu:xenial \
+            sh -c 'apt-get update -qy && apt-get install -qy build-essential libv4l-dev libasound2-dev libudev-dev && make -j2 && ls -la video_processor_libretro.so && ldd video_processor_libretro.so'
+
+  linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    container: ubuntu:focal
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps (replays .gitlab-ci.yml before_script)
+        run: |
+          apt-get update -qy
+          DEBIAN_FRONTEND=noninteractive apt-get install -qy build-essential libv4l-dev libasound2-dev libudev-dev
+      - run: make -f Makefile -j2
+      - run: |
+          ls -la video_processor_libretro.so
+          ldd video_processor_libretro.so
+
+  linux-x64-no-deps:
+    name: linux-x64 (headers missing -> features autodisabled)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -j2 && ldd video_processor_libretro.so
